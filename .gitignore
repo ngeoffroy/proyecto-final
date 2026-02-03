@@ -1,0 +1,10 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtualenv / user site-packages
+venv/
+.venv/
+.local/
