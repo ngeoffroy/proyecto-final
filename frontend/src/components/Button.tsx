@@ -6,5 +6,5 @@ type ButtonProps = {
 };
 
 export default function Button({ onClick, children }: ButtonProps) {
-  return <button onClick={onClick} style={styles.button}>{children}</button>;
+  return <button onClick={onClick} style={styles.buttonGaze}>{children}</button>;
 }

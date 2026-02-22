@@ -1,72 +1,101 @@
 "use client";
 
-import WebGazer from "../src/components/WebGazer";
 import styles from "@/styles/styles";
-import Button from "@/components/Button";
-import { useEffect, useState } from "react";
+import ButtonGazze from "@/components/ButtonGaze";
+import { useEffect, useState, useRef } from "react";
+import Menu from "@/components/Menu/menu";
+import Calibrate from "@/components/Calibrate/calibrate";
 
 export default function Home() {
 
   const [enabled, setEnabled] = useState(false)
+  const [mode, setMode] = useState("menu");
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const gazeTimer = useRef<NodeJS.Timeout | null>(null);
 
   const handlerEmpezar = () => {
-    setEnabled(true)
+    setMode("gaze")
+  }
+
+  const handlerVolver = () => {
+    setMode("menu")
+  }
+
+  const handlerCalibrar = () => {
+    setMode("calibrate")
   }
 
   useEffect(() => {
     if (!enabled) return;
 
-    const startWebGazer = async () => {
-      const webgazer = (await import("webgazer")).default;
+    let webgazerInstance: any;
 
-      webgazer
-        .setRegression("ridge")
-        .setGazeListener(() => { })
+    const startWebGazer = async () => {
+      webgazerInstance = (await import("webgazer")).default;
+
+      webgazerInstance
+        .setGazeListener((data: any) => {
+          if (!data || !buttonRef.current) return;
+
+          const { x, y } = data;
+          const rect = buttonRef.current.getBoundingClientRect();
+
+          const isLookingAtButton =
+            x >= rect.left &&
+            x <= rect.right &&
+            y >= rect.top &&
+            y <= rect.bottom;
+
+          if (isLookingAtButton) {
+            if (!gazeTimer.current) {
+              gazeTimer.current = setTimeout(() => {
+                stopWebGazer(webgazerInstance);
+                setEnabled(false);
+              }, 400); // 👁️ tiempo de fijación (ms)
+            }
+          } else {
+            if (gazeTimer.current) {
+              clearTimeout(gazeTimer.current);
+              gazeTimer.current = null;
+            }
+          }
+        })
         .begin();
 
-      webgazer.showVideo(true);
-      webgazer.showPredictionPoints(true);
+      webgazerInstance.showPredictionPoints(true);
+    };
+
+    const stopWebGazer = (wg: any) => {
+      wg.end();
+      if (gazeTimer.current) {
+        clearTimeout(gazeTimer.current);
+        gazeTimer.current = null;
+      }
     };
 
     startWebGazer();
 
     return () => {
-      import("webgazer").then(wg => wg.default.end());
+      if (webgazerInstance) webgazerInstance.end();
     };
   }, [enabled]);
 
+
   return (
     <>
-      {!enabled ? (<main style={styles.container}>
-        <section style={styles.card}>
-          <h1 style={styles.title}>Proyecto Final de Carrera</h1>
+      {mode === "menu" && <Menu setMode={setMode} />}
 
-          <p style={styles.subtitle}>
-            Desarrollo de una aplicación web para la composición musical a través de la mirada
-          </p>
+      {mode === "calibrate" && <Calibrate setMode={setMode}/>
+      }
 
-          <div style={styles.separator} />
-
-          <div style={styles.meta}>
-            <p><strong>Alumno:</strong> Nicolás Geoffroy</p>
-            <p><strong>Carrera:</strong> Ingeniería en Sistemas de Información</p>
-            <p><strong>Institución:</strong> Nombre de la Universidad</p>
-            <p><strong>Año:</strong> 2026</p>
-          </div>
+      {mode === "gaze" && (
+        <section style={styles.gaze}>
+          <h2>Seguimiento de mirada activo</h2>
+          <ButtonGazze onClick={handlerVolver} ref={buttonRef}>
+            Volver al menú
+          </ButtonGazze>
         </section>
-
-        <div style={styles.sectionSeparator} />
-
-        <section style={styles.card}>
-          <h1 style={styles.title}>¡Empezar ya!</h1>
-          <p style={styles.subtitle}> Lorem ipsum dolor sit amet consectetur adipisicing elit. Hic ratione temporibus debitis provident adipisci magnam officiis a, veniam odit natus eius accusantium nisi ipsa aliquid tempora similique sint voluptatum praesentium.</p>
-          <Button onClick={handlerEmpezar}> Empezar</Button>
-        </section>
-
-      </main>
-      ) : (<section style={styles.gaze}>
-        <h2>Seguimiento de mirada activo</h2>
-      </section>)}
+      )}
     </>
   );
 }
