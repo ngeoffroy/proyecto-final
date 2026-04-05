@@ -10,7 +10,7 @@ type CalibrateProps = {
 export default function Calibrate({ setMode }: CalibrateProps) {
     const [index, setIndex] = useState(0)
 
-    // Definimos el pool de puntos (usamos % para que se ajuste porcentaulmente a la pantalla)
+    // Definimos el pool de puntos (usamos % para que se ajuste porcentaulmente a las dimensiones de la pantalla)
     const points = [
         { x: "10%", y: "10%" },
         { x: "50%", y: "10%" },
@@ -63,7 +63,7 @@ export default function Calibrate({ setMode }: CalibrateProps) {
                 }}
             />
             <p style={styles.textStyle}>
-                Mirá el punto ({index + 1} / {points.length})
+                Punto ({index + 1} / {points.length})
             </p>
         </div>
     )

@@ -72,7 +72,7 @@ const styles = {
     color: "#00e5ff",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-around",
     fontSize: "2rem",
   },
 

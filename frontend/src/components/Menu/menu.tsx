@@ -7,11 +7,11 @@ type MenuProps = {
 
 export default function Menu({ setMode }: MenuProps) {
 
-    const handlerEmpezar = () => {
+    const handlerBegin = () => {
         setMode("gaze")
     }
 
-    const handlerCalibrar = () => {
+    const handlerCalibrate = () => {
         setMode("calibrate")
     }
 
@@ -20,9 +20,9 @@ export default function Menu({ setMode }: MenuProps) {
             <section style={styles.card}>
                 <h1 style={styles.title}>Proyecto Final de Carrera</h1>
 
-                <Button onClick={handlerEmpezar}>Empezar</Button>
+                <Button onClick={handlerBegin}>Empezar</Button>
                 <br /><br />
-                <Button onClick={handlerCalibrar}>Calibrar mirada</Button>
+                <Button onClick={handlerCalibrate}>Calibrar mirada</Button>
             </section>
         </main>
 
