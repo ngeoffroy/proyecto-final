@@ -1,66 +1,72 @@
-import {useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-export default function useTrackGaze(enabled:boolean) {
-    const buttonRef = useRef<HTMLButtonElement | null>(null);
-    const gazeTimer = useRef<NodeJS.Timeout | null>(null);
+type Gaze = { x: number; y: number } | null;
+
+export default function useTrackGaze(enabled: boolean): Gaze {
     const webgazerRef = useRef<any>(null);
+    const [gaze, setGaze] = useState<Gaze>(null);
 
     useEffect(() => {
-        if (!enabled){
-            webgazerRef.current?.end();
+        let isMounted = true;
+
+        const start = async () => {
+            if (webgazerRef.current) return;
+
+            const webgazer = (await import("webgazer")).default;
+            webgazerRef.current = webgazer;
+
+            webgazer
+                .setRegression("ridge")
+                .setGazeListener((data: any) => {
+                    if (!data || !isMounted) return;
+
+                    setGaze({ x: data.x, y: data.y });
+                })
+                .showPredictionPoints(true)
+                .begin();
+            webgazerRef.current.showVideo(true);
+            //webgazerRef.current.showVideo(false);
+        };
+
+        const stop = () => {
+            if (!webgazerRef.current) return;
+
+            webgazerRef.current.showVideo(false);
+            webgazerRef.current.showFaceOverlay(false);
+            webgazerRef.current.showPredictionPoints(false);
+            webgazerRef.current.pause();
+            webgazerRef.current.clearGazeListener();
+
             webgazerRef.current = null;
-            return;
+
+            const overlays = [
+                "webgazerFaceOverlay",
+                "webgazerVideoCanvas",
+                "webgazerFaceFeedbackBox"
+            ];
+
+            overlays.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    (el as HTMLElement).style.display = "none";
+                }
+            });
+
+            webgazerRef.current = null;
+            setGaze(null);
+        };
+
+        if (enabled) {
+            start();
+        } else {
+            stop();
         }
 
-        // let webgazerInstance: any;
-
-        const startWebGazer = async () => {
-            const webgazerInstance = (await import("webgazer")).default;
-            webgazerRef.current = webgazerInstance;
-
-            webgazerInstance
-                .setGazeListener((data: any) => {
-                    if (!data || !buttonRef.current) return;
-
-                    const { x, y } = data;
-                    const rect = buttonRef.current.getBoundingClientRect();
-
-                    const isLookingAtButton =
-                        x >= rect.left &&
-                        x <= rect.right &&
-                        y >= rect.top &&
-                        y <= rect.bottom;
-
-                    if (isLookingAtButton) {
-                        if (!gazeTimer.current) {
-                            gazeTimer.current = setTimeout(() => {
-                                stopWebGazer(webgazerInstance);
-                            }, 400);
-                        }
-                    } else {
-                        if (gazeTimer.current) {
-                            clearTimeout(gazeTimer.current);
-                            gazeTimer.current = null;
-                        }
-                    }
-                })
-                .begin();
-
-            webgazerInstance.showPredictionPoints(true);
-        };
-
-        const stopWebGazer = (wg: any) => {
-            wg.end();
-            if (gazeTimer.current) {
-                clearTimeout(gazeTimer.current);
-                gazeTimer.current = null;
-            }
-        };
-
-        startWebGazer();
-
         return () => {
-            if (webgazerInstance) webgazerInstance.end();
+            isMounted = false;
+            stop();
         };
     }, [enabled]);
+
+    return gaze;
 }

@@ -16,7 +16,7 @@ export default function Menu({ setMode }: MenuProps) {
     }
 
     return (
-        <main style={styles.container}>
+        <main>
             <section style={styles.card}>
                 <h1 style={styles.title}>Proyecto Final de Carrera</h1>
 
