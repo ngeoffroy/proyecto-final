@@ -4,9 +4,11 @@ import useTrackGaze from "@/hooks/useTrackGaze";
 import Button from "../Button";
 import styles from "@/styles/styles";
 import { handlerStartMusic } from "../Tone/tone";
+import { getLastComposition, saveComposition } from "@/services/endpoints";
 
 type GazeProps = {
     setMode: (Mode: string) => void;
+    precisionCalibracion: number;
 };
 
 type ChordButton = {
@@ -15,8 +17,13 @@ type ChordButton = {
     angle: number;
 };
 
-export default function Gaze({ setMode }: GazeProps) {
+export default function Gaze({ setMode, precisionCalibracion }: GazeProps) {
     const [enabled, setEnabled] = useState(false);
+    const [notesPlayed, setNotesPlayed] = useState<string[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isLoadingComposition, setIsLoadingComposition] = useState(false);
+    const [isPlayingMelody, setIsPlayingMelody] = useState(false);
+    const [saveMessage, setSaveMessage] = useState("");
     const gaze = useTrackGaze(enabled);
     const chordRefs = useRef<Record<string, HTMLButtonElement | null>>({});
     const gazeHoldRef = useRef<{
@@ -39,7 +46,18 @@ export default function Gaze({ setMode }: GazeProps) {
         { note: "FA", color: "#ffff00", angle: 309 },
     ];
 
-    const radius = 320;
+    // Factor de tamaño según precisión de calibración:
+    // >90% → tamaño normal | 70-90% → 15% más grande | 60-70% → 25% más grande
+    const buttonFactor =
+        precisionCalibracion > 90 ? 1 :
+        precisionCalibracion > 70 ? 1.15 :
+        1.25;
+
+    // El radio y el círculo se achican en proporción inversa
+    // para que los botones más grandes no generen scroll
+    const radius = Math.round(450 / buttonFactor);
+    const circleSize = Math.round(1200 / buttonFactor);
+    const buttonSize = Math.round(200 * buttonFactor);
 
 
     useEffect(() => {
@@ -75,13 +93,15 @@ export default function Gaze({ setMode }: GazeProps) {
         }
 
         const elapsed = now - holdState.startedAt;
-        if (elapsed >= 1000 && !holdState.played) {
+        if (elapsed >= 500 && !holdState.played) {
             gazeHoldRef.current.played = true;
             void handleChordClick(hoveredNote);
         }
     }, [enabled, gaze]);
 
     const handleStart = () => {
+        setNotesPlayed([]);
+        setSaveMessage("");
         setEnabled(true);
     };
 
@@ -96,6 +116,83 @@ export default function Gaze({ setMode }: GazeProps) {
 
     const handleChordClick = async (note: string) => {
         await handlerStartMusic(note);
+        makeMelody(note);
+    };
+
+    const makeMelody = (note: string) => {
+        setNotesPlayed((prev) => [...prev, note]);
+    };
+
+    const handlerCleanMelody = () => {
+        setNotesPlayed([])
+    }
+
+    const handleSaveComposition = async () => {
+        if (notesPlayed.length === 0 || isSaving) return;
+
+        setIsSaving(true);
+        setSaveMessage("");
+
+        try {
+            await saveComposition({
+                notes: notesPlayed,
+                precisionCalibracion,
+            });
+            setSaveMessage("Melodía guardada correctamente");
+        } catch {
+            setSaveMessage("No se pudo guardar la melodía");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleLoadLastComposition = async () => {
+        if (isLoadingComposition) return;
+
+        setIsLoadingComposition(true);
+        setSaveMessage("");
+
+        try {
+            const response = await getLastComposition();
+            const loadedNotes = response?.data?.notas ?? response?.notas ?? [];
+
+            if (!Array.isArray(loadedNotes) || loadedNotes.length === 0) {
+                setSaveMessage("No hay melodías guardadas");
+                return;
+            }
+
+            setNotesPlayed(loadedNotes);
+            setSaveMessage("Última melodía cargada");
+        } catch {
+            setSaveMessage("No se pudo cargar la melodía");
+        } finally {
+            setIsLoadingComposition(false);
+        }
+    };
+
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const playMelody = async () => {
+        if (notesPlayed.length === 0 || isPlayingMelody) return;
+
+        setIsPlayingMelody(true);
+        setSaveMessage("");
+
+        const melody = [...notesPlayed];
+
+        try {
+            for (let i = 0; i < melody.length; i++) {
+                await handlerStartMusic(melody[i]);
+                if (i < melody.length - 1) {
+                    await sleep(500);
+                }
+            }
+            setSaveMessage("Melodía reproducida");
+        } catch {
+            setSaveMessage("No se pudo reproducir la melodía");
+        } finally {
+            setIsPlayingMelody(false);
+        }
     };
 
     // Calcular posición de un botón basado en el ángulo
@@ -151,11 +248,11 @@ export default function Gaze({ setMode }: GazeProps) {
 
                     <div style={styles.gazeIntroButtons}>
 
-                        <Button onClick={enabled ? handleStop : handleStart}>
+                        <Button onClick={enabled ? handleStop : handleStart} disabled={false}>
                             {enabled ? "Detener tracking" : "Iniciar tracking"}
                         </Button>
 
-                        <Button onClick={handlerReturn}>
+                        <Button onClick={handlerReturn} disabled={false}>
                             Volver al menu
                         </Button>
                     </div>
@@ -165,7 +262,7 @@ export default function Gaze({ setMode }: GazeProps) {
             {enabled && (
                 <>
                     {/* Círculo de acordes */}
-                    <div style={styles.gazeCircleStyle}>
+                    <div style={{ ...styles.gazeCircleStyle, width: `${circleSize}px`, height: `${circleSize}px` }}>
                         {/* Centro gris */}
                         <div className="chordsContainer" />
                         {/* Botones de acordes */}
@@ -175,7 +272,7 @@ export default function Gaze({ setMode }: GazeProps) {
                                 ref={(el) => {
                                     chordRefs.current[chord.note] = el;
                                 }}
-                                style={styles.gazeChordButton(chord.color, getTransform(chord.angle))}
+                                style={styles.gazeChordButton(chord.color, getTransform(chord.angle), buttonSize)}
                                 onMouseEnter={(e) => {
                                     e.currentTarget.style.transform = getTransform(chord.angle, 1.1);
                                     e.currentTarget.style.boxShadow = styles.gazeChordHoverShadow;
@@ -198,8 +295,53 @@ export default function Gaze({ setMode }: GazeProps) {
                             : "Sin datos"}
                     </div>
 
+                    <div style={styles.gazeNotesPanel}>
+                        <span style={styles.gazeNotesLabel}>Notas tocadas</span>
+                        {notesPlayed.length === 0 ? (
+                            <span style={styles.gazeNotesEmpty}>No se han tocado notas</span>
+                        ) : (
+                            <div style={styles.gazeNotesList}>
+                                {notesPlayed.map((note, index) => (
+                                    <span key={`${note}-${index}`} style={styles.gazeNoteChip}>
+                                        {note}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
+                        <button
+                            onClick={handleSaveComposition}
+                            disabled={notesPlayed.length === 0 || isSaving}
+                            style={styles.gazeSaveButton}
+                        >
+                            {isSaving ? "Guardando..." : "Guardar melodía"}
+                        </button>
+
+                        <button
+                            onClick={playMelody}
+                            disabled={notesPlayed.length === 0 || isPlayingMelody}
+                            style={styles.gazeSaveButton}
+                        >
+                            {isPlayingMelody ? "Reproduciendo..." : "Play melody"}
+                        </button>
+
+                        <button onClick={handlerCleanMelody} style={styles.gazeSaveButton}> Borrar melodia </button>
+
+                        <Button
+                            onClick={handleLoadLastComposition}
+                            style={{ width: "100%", minWidth: "0", fontSize: "1rem", padding: "0.85rem 1rem" }}
+                            disabled={false}
+                        >
+                            {isLoadingComposition ? "Cargando..." : "Cargar última melodía"}
+                        </Button>
+
+                        {saveMessage && (
+                            <span style={styles.gazeSaveMessage}>{saveMessage}</span>
+                        )}
+                    </div>
+
                     <div style={styles.gazeSideMenuControl}>
-                        <Button onClick={handlerReturn}>
+                        <Button onClick={handlerReturn} disabled={false}>
                             Volver al menu
                         </Button>
                     </div>

@@ -127,7 +127,23 @@ const styles = {
     backgroundColor: "rgba(0, 229, 255, 0.08)",
     color: "#00e5ff",
     cursor: "pointer",
-  },
+  } as React.CSSProperties & { "&:disabled": React.CSSProperties },
+
+  buttonGazeDisabled: {
+    backgroundColor: "#9ca3af",
+    color: "#6b7280",
+    borderColor: "#9ca3af",
+    cursor: "not-allowed",
+    opacity: 0.6,
+  } as React.CSSProperties,
+
+  calibrationWarning: {
+    fontSize: "1rem",
+    color: "#fca5a5",
+    marginTop: "0.5rem",
+    marginBottom: "0.5rem",
+    fontStyle: "italic" as const,
+  } as React.CSSProperties,
 
   overlayStyle: {
     position: "fixed" as const,
@@ -162,10 +178,10 @@ const styles = {
     margin: "0 auto",
   },
 
-  gazeChordButton: (color: string, transform: string) => ({
+  gazeChordButton: (color: string, transform: string, size: number = 200) => ({
     position: "absolute" as const,
-    width: "200px",
-    height: "200px",
+    width: `${size}px`,
+    height: `${size}px`,
     borderRadius: "70%",
     backgroundColor: color,
     border: "3px solid rgba(255, 255, 255, 0.8)",
@@ -192,6 +208,73 @@ const styles = {
     left: "20px",
     color: "#00e5ff",
     fontSize: "1rem",
+  },
+
+  gazeNotesPanel: {
+    position: "absolute" as const,
+    top: "50%",
+    right: "20px",
+    transform: "translateY(-50%)",
+    width: "280px",
+    maxHeight: "72vh",
+    padding: "1rem",
+    borderRadius: "14px",
+    border: "1px solid rgba(0, 229, 255, 0.35)",
+    backgroundColor: "rgba(15, 23, 42, 0.82)",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.35)",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "0.75rem",
+  },
+
+  gazeNotesLabel: {
+    color: "#67e8f9",
+    fontSize: "1rem",
+    fontWeight: 700,
+    letterSpacing: "0.02em",
+  },
+
+  gazeNotesEmpty: {
+    color: "#94a3b8",
+    fontSize: "0.95rem",
+  },
+
+  gazeNotesList: {
+    display: "flex",
+    flexWrap: "wrap" as const,
+    gap: "0.45rem",
+    overflowY: "auto" as const,
+    paddingRight: "0.25rem",
+  },
+
+  gazeNoteChip: {
+    padding: "0.35rem 0.6rem",
+    borderRadius: "999px",
+    border: "1px solid rgba(0, 229, 255, 0.35)",
+    backgroundColor: "rgba(0, 229, 255, 0.12)",
+    color: "#e0f2fe",
+    fontSize: "0.85rem",
+    fontWeight: 600,
+  },
+
+  gazeSaveButton: {
+    marginTop: "0.35rem",
+    width: "100%",
+    padding: "0.7rem 1rem",
+    borderRadius: "10px",
+    border: "1px solid rgba(0, 229, 255, 0.65)",
+    background: "linear-gradient(90deg, rgba(0,229,255,0.2), rgba(56,189,248,0.25))",
+    color: "#ecfeff",
+    fontWeight: 700,
+    fontSize: "0.95rem",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+  },
+
+  gazeSaveMessage: {
+    fontSize: "0.85rem",
+    color: "#7dd3fc",
+    minHeight: "1.1rem",
   },
 
   gazeSideMenuControl: {
@@ -311,6 +394,31 @@ const styles = {
     position: "absolute" as const,
     bottom: "20%",
     left: "80%",
+  },
+
+  calibrateCompletedOverlay: {
+    position: "fixed" as const,
+    inset: 0,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,
+  },
+
+  calibrateCompletedModal: {
+    backgroundColor: "#0f172a",
+    padding: "2rem 3rem",
+    borderRadius: "16px",
+    border: "1px solid rgba(0,229,255,0.3)",
+    textAlign: "center" as const,
+    color: "#00e5ff",
+    minWidth: "320px",
+  },
+
+  calibrateCompletedTitle: {
+    marginBottom: "1rem",
+    fontSize: "2rem",
   },
 
 };

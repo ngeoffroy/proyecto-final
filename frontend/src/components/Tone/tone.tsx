@@ -20,7 +20,3 @@ export const handlerStartMusic = async (chord) => {
     synth.triggerAttack(note, now);
     synth.triggerRelease([note], now + 0.8);
 }
-
-export const handlerStopMusic = () => {
-
-}

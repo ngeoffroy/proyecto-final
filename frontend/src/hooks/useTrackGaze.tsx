@@ -36,19 +36,24 @@ export default function useTrackGaze(enabled: boolean): Gaze {
             webgazerRef.current.showPredictionPoints(false);
             webgazerRef.current.pause();
             webgazerRef.current.clearGazeListener();
+            webgazerRef.current.end?.();
 
             webgazerRef.current = null;
 
             const overlays = [
+                "webgazerVideoContainer",
+                "webgazerVideoFeed",
                 "webgazerFaceOverlay",
                 "webgazerVideoCanvas",
-                "webgazerFaceFeedbackBox"
+                "webgazerFaceFeedbackBox",
+                "webgazerGazeDot",
+                "webgazerCanvas"
             ];
 
             overlays.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
-                    (el as HTMLElement).style.display = "none";
+                    (el as HTMLElement).remove();
                 }
             });
 

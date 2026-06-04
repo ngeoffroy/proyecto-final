@@ -4,22 +4,25 @@ import styles from "@/styles/styles";
 import useTrackGaze from "@/hooks/useTrackGaze";
 import Button from "../Button";
 
-const REQUIRED_CLICKS = 2;
+const REQUIRED_CLICKS = 5;
+const MAX_ERROR_PERMITED = 300;
 
 type CalibrateProps = {
     setMode: (mode: string) => void;
+    setPrecisionCalibracion: (valor: number) => void;
 };
 
-export default function Calibrate({ setMode }: CalibrateProps) {
+export default function Calibrate({ setMode, setPrecisionCalibracion }: CalibrateProps) {
 
     const [points, setPoints] = useState(Array(9).fill(0));
     const [currentPoint, setCurrentPoint] = useState(0);
     const [initGaze, setInitGaze] = useState(false);
     const [completed, setCompleted] = useState(false);
+    const [errorAproximacion, setErrorAproximacion] = useState(0);
 
-    // Puntos en toda la pantalla (esquinas, bordes y centro)
+    // Puntos
     const basePoints = [
-        { x: 50, y: 50 }, // centro primero
+        { x: 50, y: 50 },
         { x: 35, y: 25 },
         { x: 50, y: 25 },
         { x: 65, y: 25 },
@@ -30,11 +33,35 @@ export default function Calibrate({ setMode }: CalibrateProps) {
         { x: 65, y: 65 },
     ];
 
-    useTrackGaze(initGaze);
+    const gaze = useTrackGaze(initGaze);
 
-    const handleClick = () => {
+    const getErrorPresition = (posicionClic: { x: number; y: number }, posicionPunto: { x: number; y: number }): number => {
+        const distancia = Math.sqrt(
+            Math.pow(posicionPunto.x - posicionClic.x, 2) + Math.pow(posicionPunto.y - posicionClic.y, 2)
+        );
+        return distancia;
+    }
+
+    const calcularPrecision = (errorEnPixeles: number): number => {
+        if (errorEnPixeles <= 0) return 100;
+        if (errorEnPixeles >= MAX_ERROR_PERMITED) return 0;
+        return Math.max(0, 100 * (1 - (errorEnPixeles / MAX_ERROR_PERMITED)));
+    }
+
+    const handleClick = (x: number, y: number) => {
+        if (gaze) {
+            const posicionPunto = {
+                x: (x / 100) * window.innerWidth,
+                y: (y / 100) * window.innerHeight,
+            };
+
+            const errorActualPx = getErrorPresition(gaze, posicionPunto);
+            const precisionPorcentaje = calcularPrecision(errorActualPx);
+            setErrorAproximacion(precisionPorcentaje);
+            setPrecisionCalibracion(precisionPorcentaje);
+        }
+
         // guardamos el nuevo punto en la lista de puntos vistos y le sumamos 1
-        console.log(currentPoint)
         const newPoints = [...points];
         newPoints[currentPoint]++;
         setPoints(newPoints);
@@ -49,14 +76,15 @@ export default function Calibrate({ setMode }: CalibrateProps) {
     };
 
     const handleStart = () => {
-        window.webgazer?.saveDataAcrossSessions?.(false);
-        window.webgazer?.clearData?.();
-        window.webgazer?.setRegression?.("weightedRidge");
-        window.webgazer?.begin?.();
-        setInitGaze(true)
+        setInitGaze(true);
     }
 
-    const handleBack = () => setMode("menu");
+    const handleBack = () => {
+        setInitGaze(false);
+        window.setTimeout(() => {
+            setMode("menu");
+        }, 50);
+    };
 
     const point = currentPoint < basePoints.length ? basePoints[currentPoint] : null;
     const clicks = points[currentPoint];
@@ -70,6 +98,8 @@ export default function Calibrate({ setMode }: CalibrateProps) {
                     <p style={styles.calibrateIntroText}>
                         Antes de comenzar el seguimiento visual, vamos a calibrar el sistema para mejorar la precisión. <br /><br />
 
+                        La posición de la mirada está dada por el punto 🔴, mientras que 🔵 es al que deseamos observar <br /><br />
+
                         ❗ Observá y hacé click en cada punto que aparezca en pantalla.<br /><br />
 
                         ⏳ Procura que la vista se acerque los más cerca posible del punto.<br /><br />
@@ -80,8 +110,8 @@ export default function Calibrate({ setMode }: CalibrateProps) {
                     </p>
 
                     <div style={styles.calibrateIntroButtons}>
-                        <Button onClick={handleStart}>Iniciar calibracion</Button>
-                        <Button onClick={handleBack}>Volver</Button>
+                        <Button onClick={handleStart} disabled={false}>Iniciar calibracion</Button>
+                        <Button onClick={handleBack} disabled={false}>Volver</Button>
                     </div>
                 </div>
             )}
@@ -120,17 +150,7 @@ export default function Calibrate({ setMode }: CalibrateProps) {
                             </span>
 
                             <span style={styles.calibrateValue}>
-                                92%
-                            </span>
-                        </div>
-
-                        <div style={styles.calibrateSection}>
-                            <span style={styles.calibrateLabel}>
-                                Error promedio
-                            </span>
-
-                            <span style={styles.calibrateValue}>
-                                1.4°
+                                {errorAproximacion.toFixed(1)}%
                             </span>
                         </div>
 
@@ -138,7 +158,7 @@ export default function Calibrate({ setMode }: CalibrateProps) {
 
                     {point && (
                         <div
-                            onClick={handleClick}
+                            onClick={() => handleClick(point.x, point.y)}
                             style={{
                                 ...styles.calibratePoint,
                                 left: `${point.x}%`,
@@ -148,7 +168,7 @@ export default function Calibrate({ setMode }: CalibrateProps) {
                     )}
 
                     <div style={styles.calibrateFooterVolver}>
-                        <Button onClick={handleBack}>
+                        <Button onClick={handleBack} disabled={false}>
                             Volver
                         </Button>
                     </div>
@@ -156,38 +176,13 @@ export default function Calibrate({ setMode }: CalibrateProps) {
             )}
 
             {completed && (
-                <div
-                    style={{
-                        position: "fixed",
-                        inset: 0,
-                        backgroundColor: "rgba(0,0,0,0.6)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 9999,
-                    }}
-                >
-                    <div
-                        style={{
-                            backgroundColor: "#0f172a",
-                            padding: "2rem 3rem",
-                            borderRadius: "16px",
-                            border: "1px solid rgba(0,229,255,0.3)",
-                            textAlign: "center",
-                            color: "#00e5ff",
-                            minWidth: "320px",
-                        }}
-                    >
-                        <h2
-                            style={{
-                                marginBottom: "1rem",
-                                fontSize: "2rem",
-                            }}
-                        >
-                            Calibración completa
+                <div style={styles.calibrateCompletedOverlay}>
+                    <div style={styles.calibrateCompletedModal}>
+                       <h2 style={styles.calibrateCompletedTitle}>
+                           {errorAproximacion > MAX_ERROR_PERMITED ? 'Error de aproximación alto. Volver a calibrar' : 'Calibración completa'}
                         </h2>
                         <div>
-                            <Button onClick={handleBack}>
+                            <Button onClick={handleBack} disabled={false}>
                                 Volver al menu
                             </Button>
                         </div>
