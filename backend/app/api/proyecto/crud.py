@@ -40,13 +40,15 @@ def get_last_composition() -> list:
 
 def create_composition(notas: list[str], precision_calibracion: float | None) -> dict:
     conn = get_connection()
-    qry ="INSERT INTO composiciones (notas, precision_calibracion) VALUES (?, ?)",(json.dumps(notas), precision_calibracion),
+    qry = '''
+    INSERT INTO composiciones (notas, precision_calibracion) VALUES (?, ?)
+    '''
     try:
-        cursor = conn.execute(qry)
+        cursor = conn.execute(qry, (json.dumps(notas), precision_calibracion))
         conn.commit()
 
-        qry_result = "SELECT id, notas, precision_calibracion, created_at FROM composiciones WHERE id = ?",(cursor.lastrowid,),
-        row = conn.execute(qry_result).fetchone()
+        qry_result = "SELECT id, notas, precision_calibracion, created_at FROM composiciones WHERE id = ?"
+        row = conn.execute(qry_result,(cursor.lastrowid,)).fetchone()
 
         return {
             "id": row["id"],
